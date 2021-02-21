@@ -1,0 +1,519 @@
+
+#include <OneWire.h>
+#include <LiquidCrystal.h>
+#include <DallasTemperature.h>
+const int sensor = A1; // Assigning analog pin A1 to variable 'sensor'
+
+
+
+
+
+
+LiquidCrystal lcd(2, 3, 4, 5, 6, 7);  
+
+
+
+
+
+
+const int ONE_WIRE_BUS = 8;
+
+
+const int HEART = A0;
+
+
+int gas_State, gas_flage = 1, temp_flage = 1, heart_flage = 1, gas_status = 0;
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature DS18B20(&oneWire);
+
+int heartBeat;
+double alpha = 0.75;
+int period = 20;
+double refresh = 0.0;
+float temperature_c;
+
+
+int count = 1, fall = 1, heart_flage1 = 1, temp_flage1 = 1;
+int count_limit = 0; float vout;
+
+void setup(void)
+{
+  Serial.begin(9600);
+  DS18B20.begin();
+
+  lcd.begin(16, 2);
+  lcd.clear();
+
+  pinMode(sensor, INPUT); // Configuring pin A1 as input
+
+  // intro_net();
+  //  pinMode(gas, INPUT_PULLUP);
+
+
+  Serial.begin(9600);
+
+
+
+
+
+
+
+
+  lcd.clear();
+  lcd.print("   Welcome");
+  lcd.setCursor(0, 1);
+  lcd.print("  pls wait....");
+  delay(3000);
+  //goto main;
+
+  lcd.clear();
+  lcd.print("Checking GSM...  ");
+
+  // delay(2000);
+  lcd.setCursor(0, 1);
+  lcd.print("GSM Connected ");
+
+
+  // delay(4000);
+
+  lcd.clear();
+  lcd.print("    PLS WAIT...");
+
+  delay(4000);
+  lcd.setCursor(0, 1);
+  lcd.print("GSM Configration....");
+  delay(4000);
+
+
+
+  lcd.clear();
+  lcd.print("Checking network");
+
+  delay(3000);
+  lcd.setCursor(0, 1);
+  lcd.print("Network found ");
+  delay(3000);
+
+
+ intro_sms();
+  delay(5000);
+  intro_net();
+
+
+
+  // min 160   max 190
+
+  // min 220    max 190
+
+
+
+
+
+
+
+
+
+}
+
+
+
+void loop(void)
+{
+main:
+  read_temperature();
+  vout = analogRead(sensor);
+  vout = (vout * 500) / 1023;
+
+  heart_beat();
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("T:");
+  lcd.print(temperature_c);
+  lcd.print("C");
+  lcd.print(" P:");
+  lcd.print(vout);
+  lcd.setCursor(0, 1);
+  lcd.print("Heart:");
+  lcd.print(heartBeat);
+
+
+
+  delay(1000);
+
+
+
+  //
+
+
+/*
+
+  if (vout < 170 || vout > 210 )
+  {
+
+    lcd.clear();
+    lcd.print("    Alert");
+    lcd.setCursor(0, 1);
+    lcd.print(" Fall detected");
+
+
+
+    if (fall == 1)
+    {
+      fall_sms();
+
+    }
+    delay(2000);
+
+
+  }
+
+ */ if (heartBeat < 40)
+  {
+
+    lcd.clear();
+    lcd.print("    Alert");
+    lcd.setCursor(0, 1);
+    lcd.print("Heart beat low");
+
+
+    if (heart_flage1 == 1)
+    {
+      heart_sms();
+
+    }
+    delay(2000);
+
+
+
+
+
+  }
+
+
+  if (temperature_c > 50)
+  {
+
+    lcd.clear();
+    lcd.print("    Alert");
+    lcd.setCursor(0, 1);
+    lcd.print("High Temperature");
+
+
+    if (temp_flage1 == 1)     //   8428898461
+    {
+      temp_sms();
+
+    }
+    delay(2000);
+
+
+
+
+
+  }
+
+
+  delay(1000);
+  //goto main;
+
+
+  Serial.print("AT+HTTPPARA=\"URL\",\"http://api.thingspeak.com/update?api_key=JRLEE871C4HASXRR&field1=");
+
+
+  Serial.print(heartBeat - 4);
+
+  Serial.print("&field2=");
+  Serial.print(temperature_c);
+  Serial.print("&field3=");
+  //  Serial.print(literperhour, DEC);
+  //Serial.print("&field4=");
+  Serial.print(vout);
+  Serial.print('"');
+  Serial.print(";");
+  Serial.print("\r\n");
+
+
+  delay(3000);
+  Serial.println("AT+HTTPACTION=0");    //Sets the GSM Module in Text Mode
+  delay(10000);
+
+
+
+  lcd.clear();
+  lcd.print("DATA UPDATING...");
+
+  delay(1000);
+  lcd.setCursor(0, 1);
+  delay(3000);
+  lcd.print(" UPDATES SUCCESS");
+
+  // Serial.println(temperature_c);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  //  http://api.thingspeak.com/update?api_key=V2FHT62UENI62PKW&field1
+
+
+
+
+
+
+
+
+
+  /* if (heartBeat > 100 || temperature_c > 35.0)
+    {
+     digitalWrite(BUZZER, HIGH);
+    }else
+    {
+      digitalWrite(BUZZER, LOW);
+    }
+
+    if (digitalRead(BUTTON1) == HIGH)
+    {
+     count = 1;
+     count_limit = 5;
+     Serial.println("BUTTON1 PRESSED");
+     attachInterrupt(digitalPinToInterrupt(interruptPin), counter, CHANGE);
+     digitalWrite(MOTOR, HIGH);
+    }
+    if (digitalRead(BUTTON2) == HIGH)
+    {
+     count = 1;
+     count_limit = 10;
+     Serial.println("BUTTON2 PRESSED");
+     attachInterrupt(digitalPinToInterrupt(interruptPin), counter, CHANGE);
+     digitalWrite(MOTOR, HIGH);
+    }
+  */
+}
+
+
+void heart_beat()
+{
+  static double oldValue = 0;
+  static double oldrefresh = 0;
+  int beat = analogRead(HEART);
+  double value = alpha * oldValue + (0 - alpha) * beat;
+  refresh = value - oldValue;
+  heartBeat = beat / 10;
+  oldValue = value;
+  oldrefresh = refresh;
+  delay(period * 10);
+}
+void read_temperature()
+{
+  DS18B20.requestTemperatures();
+  temperature_c = DS18B20.getTempCByIndex(0);
+}
+
+
+
+
+
+void intro_sms()
+{
+
+
+  Serial.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+  delay(1000);  // Delay of 1000 milli seconds or 1 second
+  Serial.println("AT+CMGS=\"+916381847979\"\r"); // Replace x with mobile number
+  delay(1000);
+  Serial.println("Healthcare software activated");// The SMS text you want to send
+  delay(100);
+  Serial.println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
+  delay(1000);
+
+
+  delay(1000);
+  lcd.clear();
+  lcd.print(" GSM SOFTWARE");
+  lcd.setCursor(0, 1);
+  lcd.print("TSET SMS  SENT");
+  delay(3000);
+}
+
+
+void heart_sms()
+{
+
+
+  Serial.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+  delay(1000);  // Delay of 1000 milli seconds or 1 second
+  Serial.println("AT+CMGS=\"+916381847979\"\r"); // Replace x with mobile number
+  delay(1000);
+  Serial.println(" Heart beat low, Reduce STRESS, Take: AMIODARONE");// The SMS text you want to send
+  delay(100);
+  Serial.println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
+  delay(1000);
+
+
+  delay(3000);
+  lcd.clear();
+  lcd.print("  Heart alert");
+  lcd.setCursor(0, 1);
+  lcd.print("   SMS  SENT");
+  delay(4000);
+
+  
+  Serial.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+  delay(1000);  // Delay of 1000 milli seconds or 1 second
+  Serial.println("AT+CMGS=\"+919159424471\"\r"); // Replace x with mobile number
+  delay(1000);
+  Serial.println(" Heart beat low, Reduce STRESS, Take: AMIODARONE");// The SMS text you want to send
+  delay(100);
+  Serial.println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
+  delay(1000);
+
+  heart_flage1 = 0;
+
+   Serial.println("AT");
+  delay(1000);
+  Serial.println("ATD 6381847979;");
+  delay(1000);
+
+}
+
+
+void fall_sms()
+{
+
+
+  Serial.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+  delay(1000);  // Delay of 1000 milli seconds or 1 second
+  Serial.println("AT+CMGS=\"+916381847979\"\r"); // Replace x with mobile number
+  delay(1000);
+  Serial.println("  Alert ... Fall detected");// The SMS text you want to send
+  delay(100);
+  Serial.println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
+  delay(1000);
+
+
+  delay(1000);
+  lcd.clear();
+  lcd.print("FALL Dection");
+  lcd.setCursor(0, 1);
+  lcd.print(" SMS  SENT");
+  delay(3000);
+  fall = 0;
+}
+
+
+void temp_sms()
+{
+
+
+  Serial.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+  delay(1000);  // Delay of 1000 milli seconds or 1 second
+  Serial.println("AT+CMGS=\"+916381847979\"\r"); // Replace x with mobile number
+  delay(1000);
+  Serial.println("Temperature HIGH, TAKE: PARACETAMOL ");// The SMS text you want to send
+  delay(100);
+  Serial.println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
+  delay(1000);
+
+
+  delay(3000);
+  lcd.clear();
+  lcd.print("High Temperature");
+  lcd.setCursor(0, 1);
+  lcd.print("    SMS  SENT");
+
+   Serial.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+  delay(1000);  // Delay of 1000 milli seconds or 1 second
+  Serial.println("AT+CMGS=\"+919159424479\"\r"); // Replace x with mobile number
+  delay(1000);
+  Serial.println("Temperature HIGH, TAKE: PARACETAMOL ");// The SMS text you want to send
+  delay(100);
+  Serial.println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
+  delay(1000);
+  
+  delay(4000);
+  temp_flage1 = 0;
+
+
+   Serial.println("AT");
+  delay(1000);
+  Serial.println("ATD 6381847979;");
+  delay(1000);
+
+}
+
+  //  6381847979
+
+void intro_net()
+{
+
+  lcd.clear();
+  lcd.print("    PLS WAIT...");
+
+  delay(4000);
+  lcd.setCursor(0, 1);
+  lcd.print("NET Configration....");
+  delay(4000);
+
+
+  Serial.println("AT+CIPSTATUS");    //Sets the GSM Module in Text Mode
+  delay(3000);
+  Serial.println("AT+CENG=1,1");    //Sets the GSM Module in Text Mode
+  delay(3000);
+  Serial.println("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"");    //Sets the GSM Module in Text Mode
+  delay(3000);
+  Serial.println("AT+SAPBR=3,1,\"APN\",\"www\"");    //Sets the GSM Module in Text Mode
+  delay(10000);
+  Serial.println("AT+SAPBR=1,1");    //Sets the GSM Module in Text Mode
+  delay(3000);
+
+  lcd.clear();
+  lcd.print("INTERNET ACTIVATE");
+
+  delay(1000);
+  lcd.setCursor(0, 1);
+  lcd.print("COMPLETED...");
+  Serial.println("AT+HTTPINIT");    //Sets the GSM Module in Text Mode
+  delay(5000);
+
+
+
+
+
+
+
+  lcd.clear();
+  lcd.print("PLS CHECK GSM ");
+
+  delay(1000);
+  lcd.setCursor(0, 1);
+  lcd.print("LED FAST BLINK");
+
+  delay(4000);
+  lcd.clear();
+  lcd.print("INTERNET CONFIG");
+
+  delay(2000);
+  lcd.setCursor(0, 1);
+  lcd.print("COMPLETED...");
+  delay(4000);
+
+
+}
